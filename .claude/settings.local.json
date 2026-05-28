@@ -19,6 +19,7 @@
       "Bash(dig +short cpanel.inemec.com A)",
       "Bash(dig +short ftp.inemec.com A)",
       "Bash(curl -sS -m 10 -i \"https://inemec.com:2083/\")",
+      "Bash(curl -sS -m 15 -i -X POST https://inemec.com:2096/login/?login_only=1 --data-urlencode user=soporteti@inemec.com --data-urlencode 'pass=4Yim$cT$bAbvn#$')",
       "Bash(docker cp *)",
       "Bash(chmod 600 backup/rclone_config/rclone.conf)",
       "Bash(chmod +x /home/nuevastec/SERVICES/inemec_site/deploy-tunnel.sh /home/nuevastec/SERVICES/inemec_site/backup/scripts/*.sh)",
@@ -47,7 +48,11 @@
       "Bash(git -C /tmp/sim_check --work-tree=/home/nuevastec/SERVICES/inemec_site ls-files --others --exclude-from=/home/nuevastec/SERVICES/inemec_site/.gitignore)",
       "Bash(grep -vE '\\\\$\\\\{|PASSWORD\\\\}|_PASS\\\\}|password=\\\\$|# |grep|placeholder|CHANGE_ME|PENDIENTE')",
       "Bash(git -C /home/nuevastec/SERVICES check-ignore inemec_site/__TRACKED_VAR__)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(mkdir -p content-kit/paginas content-kit/posts)",
+      "Bash(python3 -c \"import json; d=json.load\\(open\\('content-kit/_index.json'\\)\\); print\\(len\\(d\\), 'entradas'\\)\")",
+      "Bash(python3 content-kit/_build_kit.py)",
+      "Bash(grep -oE \"#[0-9a-fA-F]{6}|rgb\\\\\\([0-9, ]+\\\\\\)\")"
     ]
   }
 }

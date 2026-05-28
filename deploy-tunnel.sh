@@ -61,8 +61,11 @@ check_tunnel_token() {
 
 cmd_start() {
   require_env
-  blue "Levantando database + wordpress + backup..."
-  $COMPOSE up -d database wordpress backup
+  blue "Levantando database + wordpress..."
+  # NOTA: el servicio 'backup' esta deshabilitado para este piloto (no se requiere
+  # protocolo de backup). Para reactivarlo: agregar 'backup' a la linea de abajo
+  # y reconstruir con: $0 build && $COMPOSE up -d backup
+  $COMPOSE up -d database wordpress
   echo
   green "Servicios arrancados. Probar en: $(grep ^WP_HOME "$ENV_FILE" | cut -d= -f2-)"
   echo "  (puerto 8080 expuesto solo en loopback del host por seguridad)"
