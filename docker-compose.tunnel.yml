@@ -1,0 +1,145 @@
+services:
+  # ---------------------------------------------------------------------------
+  # MariaDB (drop-in MySQL 5.7+ compatible — el dump fue creado en MySQL 5.7.44)
+  # ---------------------------------------------------------------------------
+  database:
+    image: mariadb:10.11
+    container_name: inemecsite_database
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${WP_DB_NAME}
+      MARIADB_USER: ${WP_DB_USER}
+      MARIADB_PASSWORD: ${WP_DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${WP_DB_ROOT_PASSWORD}
+      TZ: ${TZ:-America/Bogota}
+    ports:
+      # Solo expuesto al loopback del host para inspeccion local (no al mundo).
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - inemecsite_db_data:/var/lib/mysql
+      # Los .sql / .sql.gz en /docker-entrypoint-initdb.d/ se cargan UNA VEZ en el
+      # primer arranque (cuando el volumen esta vacio).
+      - ./db-init:/docker-entrypoint-initdb.d:ro
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max-allowed-packet=64M
+      - --innodb-buffer-pool-size=256M
+    networks:
+      - inemecsite-tunnel-network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # WordPress monolitico (Apache + mod_php + PHP 8.2)
+  # ---------------------------------------------------------------------------
+  wordpress:
+    image: wordpress:7.0-php8.2-apache
+    container_name: inemecsite_wordpress
+    restart: unless-stopped
+    environment:
+      WORDPRESS_DB_HOST: database:3306
+      WORDPRESS_DB_NAME: ${WP_DB_NAME}
+      WORDPRESS_DB_USER: ${WP_DB_USER}
+      WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
+      WORDPRESS_TABLE_PREFIX: ${WP_TABLE_PREFIX}
+      # Constantes inyectadas en wp-config.php. WP_HOME/WP_SITEURL pisan lo que
+      # haya en wp_options, asi podemos cambiar el dominio sin tocar la DB.
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_HOME',    '${WP_HOME}');
+        define('WP_SITEURL', '${WP_SITEURL}');
+        // Seguridad basica
+        define('DISALLOW_FILE_EDIT', true);
+        define('AUTOMATIC_UPDATER_DISABLED', true);
+        // Confiar en el header X-Forwarded-Proto que pone Cloudflare
+        if (isset($$_SERVER['HTTP_X_FORWARDED_PROTO']) && $$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+          $$_SERVER['HTTPS'] = 'on';
+        }
+      TZ: ${TZ:-America/Bogota}
+    ports:
+      # Loopback del host para validar antes de cortar al tunel. Quitar tras go-live.
+      - "127.0.0.1:8080:80"
+    volumes:
+      # Bind-mount: el entrypoint oficial poblara este directorio en el primer boot.
+      - ./wordpress:/var/www/html
+    networks:
+      - inemecsite-tunnel-network
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://127.0.0.1/wp-login.php || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ---------------------------------------------------------------------------
+  # Backup (mysqldump + rclone a SharePoint, mismo protocolo que el resto)
+  # ---------------------------------------------------------------------------
+  backup:
+    build:
+      context: ./backup
+      dockerfile: Dockerfile
+    container_name: inemecsite-backup
+    restart: unless-stopped
+    volumes:
+      - ./backup/rclone_config:/root/.config/rclone
+      - ./backup/logs:/app/logs
+      - ./backup/temp:/app/temp
+      - ./backups/mysql:/app/backups
+    environment:
+      PROJECT_NAME: InemecSite
+      PROJECT_SLUG: inemecsite
+      DB_HOST: ${DB_HOST:-database}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${WP_DB_USER}
+      DB_PASSWORD: ${WP_DB_PASSWORD}
+      DB_NAME: ${WP_DB_NAME}
+      BACKUP_INTERVAL: ${BACKUP_INTERVAL:-600}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_DESTINATIONS: ${BACKUP_DESTINATIONS:-sharepoint_jesus_corp}
+      BACKUP_REMOTE_ROOT: ${BACKUP_REMOTE_ROOT:-Inemec.150/backups}
+      ALERT_EMAIL: ${ALERT_EMAIL:-}
+      SMTP_HOST: ${SMTP_HOST:-smtp.office365.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      TZ: ${TZ:-America/Bogota}
+    networks:
+      - inemecsite-tunnel-network
+    depends_on:
+      database:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Cloudflare Tunnel
+  # ---------------------------------------------------------------------------
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: inemecsite-cloudflared
+    restart: unless-stopped
+    networks:
+      - inemecsite-tunnel-network
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    command: tunnel --no-autoupdate run
+    depends_on:
+      - wordpress
+    profiles:
+      # Solo arranca si el token NO es placeholder. Mientras tanto se queda dormido.
+      # Levantar con: docker compose --profile tunnel up -d cloudflared
+      - tunnel
+
+networks:
+  inemecsite-tunnel-network:
+    name: inemecsite-tunnel-network
+    driver: bridge
+
+volumes:
+  inemecsite_db_data:
+    name: inemecsite_db_data

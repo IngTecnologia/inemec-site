@@ -1,0 +1,21 @@
+# Secrets / env
+.env.tunnel
+.env
+
+# Runtime data
+wordpress/
+backups/
+backup/logs/
+backup/temp/
+backup/rclone_config/rclone.conf
+
+# DB init dumps are heavy and tracked separately
+db-init/*.sql
+
+# Original raw backups (heavy media)
+originals/
+
+# OS/IDE noise
+.DS_Store
+*.swp
+*.swo
