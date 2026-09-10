@@ -59,10 +59,23 @@ services:
         if (isset($$_SERVER['HTTP_X_FORWARDED_PROTO']) && $$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
           $$_SERVER['HTTPS'] = 'on';
         }
+        // WP Mail SMTP por constantes (pisan la password vieja guardada en wp_options).
+        // Office365 exige que el From coincida con la cuenta autenticada.
+        define('WPMS_ON', true);
+        define('WPMS_MAILER', 'smtp');
+        define('WPMS_SMTP_HOST', '${SMTP_HOST}');
+        define('WPMS_SMTP_PORT', ${SMTP_PORT});
+        define('WPMS_SSL', 'tls');
+        define('WPMS_SMTP_AUTH', true);
+        define('WPMS_SMTP_AUTOTLS', true);
+        define('WPMS_SMTP_USER', '${SMTP_USER}');
+        define('WPMS_SMTP_PASS', '${SMTP_PASS}');
+        define('WPMS_MAIL_FROM', '${SMTP_USER}');
+        define('WPMS_MAIL_FROM_FORCE', true);
+        define('WPMS_MAIL_FROM_NAME', 'Inemec');
+        define('WPMS_MAIL_FROM_NAME_FORCE', true);
       TZ: ${TZ:-America/Bogota}
-    ports:
-      # Loopback del host para validar antes de cortar al tunel. Quitar tras go-live.
-      - "127.0.0.1:8080:80"
+    # Sin puertos al host: todo el trafico entra por el tunel Cloudflare (go-live 2026-09-03).
     volumes:
       # Bind-mount: el entrypoint oficial poblara este directorio en el primer boot.
       - ./wordpress:/var/www/html

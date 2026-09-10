@@ -1,8 +1,9 @@
 # inemec_site — Sitio corporativo inemec.com (WordPress autogestionado)
 
 Despliegue Docker del sitio corporativo de Inemec, recuperado tras un ataque y migrado
-desde HostGator a infraestructura propia (servidor Inemec.150). Piloto accesible en
-`https://site.inemec.com` vía Cloudflare Tunnel.
+desde HostGator a infraestructura propia (servidor Inemec.150). **En produccion en
+`https://inemec.com` desde 2026-09-03** vía Cloudflare Tunnel (`www` y `site.inemec.com`
+redirigen al dominio principal).
 
 ## Arquitectura
 
@@ -61,13 +62,18 @@ Ver `./deploy-tunnel.sh help` para todos los comandos.
 ## Notas operativas
 
 - **Correo (PQRS / Contacto)**: el contenedor no trae MTA; el envio se hace por SMTP de
-  Office365 via el plugin WP Mail SMTP (configurado en `wp_options`). El remitente se fuerza
-  a `ti.automatizacion@inemec.com` porque Office365 exige que coincida con la cuenta autenticada.
+  Office365 via el plugin WP Mail SMTP. Desde 2026-09-03 la configuracion SMTP se inyecta por
+  constantes `WPMS_*` en `WORDPRESS_CONFIG_EXTRA` (leen `SMTP_*` de `.env.tunnel`), que pisan
+  cualquier valor guardado en `wp_options` — asi una rotacion de password solo requiere editar
+  `.env.tunnel` y recrear el contenedor. El remitente se fuerza a `ti.automatizacion@inemec.com`
+  porque Office365 exige que coincida con la cuenta autenticada.
 - **Miniaturas**: tras restaurar uploads conviene `wp media regenerate` para regenerar las
   variantes redimensionadas que WordPress genera bajo demanda.
-- **Migracion a inemec.com**: el piloto corre en `site.inemec.com`. Para el cambio definitivo,
-  reapuntar el hostname del tunel a `inemec.com` y actualizar `WP_HOME`/`WP_SITEURL`
-  (el comando `go-live` automatiza el cambio de URLs).
+- **Go-live (ejecutado 2026-09-03)**: `./deploy-tunnel.sh go-live` cambio `WP_HOME`/`WP_SITEURL`;
+  en Cloudflare el tunel (`7cd46683-03a3-418c-ad26-5d90a26f6a03`) tiene public hostnames
+  `inemec.com`, `www.inemec.com` y `site.inemec.com` -> `http://wordpress:80`, y el DNS del
+  apex es CNAME proxied a `<tunnel-id>.cfargotunnel.com` (`www` CNAME -> apex). El sitio viejo
+  de HostGator sigue intacto en `162.241.60.254` como rollback (revertir = restaurar el A record).
 
 ## Seguridad
 

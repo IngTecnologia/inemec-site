@@ -52,7 +52,11 @@
       "Bash(mkdir -p content-kit/paginas content-kit/posts)",
       "Bash(python3 -c \"import json; d=json.load\\(open\\('content-kit/_index.json'\\)\\); print\\(len\\(d\\), 'entradas'\\)\")",
       "Bash(python3 content-kit/_build_kit.py)",
-      "Bash(grep -oE \"#[0-9a-fA-F]{6}|rgb\\\\\\([0-9, ]+\\\\\\)\")"
+      "Bash(grep -oE \"#[0-9a-fA-F]{6}|rgb\\\\\\([0-9, ]+\\\\\\)\")",
+      "Bash(curl -sS -m 15 -o /dev/null -w \"site.inemec.com -> HTTP %{http_code} %{size_download}b %{time_total}s\\\\n\" https://site.inemec.com/)",
+      "Bash(curl -sS -m 15 -o /dev/null -w \"wp-login.php -> HTTP %{http_code}\\\\n\" https://site.inemec.com/wp-login.php)",
+      "Bash(openssl rand *)",
+      "Bash(docker rm *)"
     ]
   }
 }
